@@ -7,7 +7,7 @@ export const config = {
   projectId: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID!,
   databaseId: process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
   userCollectionId: process.env.EXPO_PUBLIC_APPWRITE_USER_COLLECTION_ID!,
-  videoCollectionId: process.env.EXPO_PUBLIC_APPWRITE_VIDEO_COLLECTION_ID,
+  activityCollectionId: process.env.EXPO_PUBLIC_APPWRITE_ACTIVITY_COLLECTION_ID!,
   storageId: process.env.EXPO_PUBLIC_APPWRITE_STORAGE_ID!,
 };
 
@@ -76,3 +76,37 @@ export const signOut = async () => {
     console.log("Error signing out:", error);
   }
 };
+
+export async function addActivity(
+  accountId: string,
+  date: string,
+  totalCount: number,
+  setCount: number,
+  repCount: number
+) {
+  try {
+    const response = await databases.createDocument(config.databaseId, config.activityCollectionId, ID.unique(), {
+      accountId,
+      date,
+      totalCount,
+      setCount,
+      repCount,
+    });
+    console.log(response);
+    return response;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+export async function getActivities(accountId: string, date: string) {
+  try {
+    const response = await databases.listDocuments(config.databaseId, config.activityCollectionId, [
+      Query.equal("accountId", accountId),
+      Query.equal("date", date),
+    ]);
+    return response;
+  } catch (error) {
+    console.error(error);
+  }
+}

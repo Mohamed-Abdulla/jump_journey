@@ -1,102 +1,96 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { StyleSheet, Image, Platform } from 'react-native';
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { Image, Platform, StyleSheet, Text, View } from "react-native";
+import CalendarPicker from "react-native-calendar-picker";
 
-import { Collapsible } from '@/components/Collapsible';
-import { ExternalLink } from '@/components/ExternalLink';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import { Collapsible } from "@/components/Collapsible";
+import { ExternalLink } from "@/components/ExternalLink";
+import ParallaxScrollView from "@/components/ParallaxScrollView";
+import { ThemedText } from "@/components/ThemedText";
+import { ThemedView } from "@/components/ThemedView";
+import { useGlobalContext } from "@/context/global-provider";
+import { addActivity, getActivities } from "@/lib/appwrite";
+import { useState } from "react";
+import { Models } from "react-native-appwrite";
+import { Activities } from "@/types/types";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { getQuote } from "@/lib/utils";
 
 export default function TabTwoScreen() {
+  const { user } = useGlobalContext();
+
+  const [activities, setActivities] = useState<Activities>();
+  const [loading, setLoading] = useState(false);
+
+  const quote = getQuote(Number(activities?.totalCount) || 0);
+
+  const fetchActivities = async (date: string) => {
+    try {
+      setLoading(true);
+      const res = await getActivities(user?.accountId, date);
+      if (res?.total !== 0) {
+        setActivities(res?.documents[0] as Activities);
+      } else {
+        setActivities(undefined);
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={<Ionicons size={310} name="code-slash" style={styles.headerImage} />}>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Custom fonts">
-        <ThemedText>
-          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
-          <ThemedText style={{ fontFamily: 'SpaceMono' }}>
-            custom fonts such as this one.
-          </ThemedText>
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user's current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText> library
-          to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <SafeAreaView className="h-full p-4 space-y-4">
+      <Text className="text-3xl font-bold mb-6 text-center">Jump Rope Activities</Text>
+      <CalendarPicker
+        selectedDayColor="#FF9C01"
+        selectedDayTextColor="#ffffff"
+        onDateChange={(date) => {
+          fetchActivities(date.toString());
+        }}
+      />
+      {loading ? (
+        <Text className="text-base font-pregular py-2 text-center">Loading...</Text>
+      ) : (
+        <View className="">
+          {!activities ? (
+            <Text className="text-base font-pregular py-2 text-center">
+              No activities found for the selected date 😕
+            </Text>
+          ) : (
+            <>
+              <View className="w-full border rounded-md border-slate-200 p-4 space-y-2">
+                <View className="flex flex-row justify-between">
+                  <Text className="text-base font-medium">Total Count</Text>
+                  <Text className="text-base">{activities?.totalCount || 0}</Text>
+                </View>
+                <View className="flex flex-row justify-between">
+                  <Text className="text-base font-medium">Set Count</Text>
+                  <Text className="text-base">{activities?.setCount || 0}</Text>
+                </View>
+                <View className="flex flex-row justify-between">
+                  <Text className="text-base font-medium">Rep Count</Text>
+                  <Text className="text-base">{activities?.repCount || 0}</Text>
+                </View>
+              </View>
+              <Text className="text-base font-pregular text-center pt-4">{quote}</Text>
+            </>
+          )}
+        </View>
+      )}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   headerImage: {
-    color: '#808080',
+    color: "#808080",
     bottom: -90,
     left: -35,
-    position: 'absolute',
+    position: "absolute",
   },
   titleContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
 });

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-import { getCurrentUser } from "../lib/appwrite";
+import { getActivities, getCurrentUser } from "../lib/appwrite";
+import { Activities } from "@/types/types";
 
 interface GlobalContextType {
   isLogged: boolean;
@@ -8,6 +9,8 @@ interface GlobalContextType {
   user: any | null;
   setUser: React.Dispatch<any | null>;
   loading: boolean;
+  activities: Activities | undefined;
+  fetchActivities: (date: string, user: any) => void;
 }
 
 const GlobalContext = createContext<GlobalContextType>({} as GlobalContextType);
@@ -18,6 +21,7 @@ const GlobalProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLogged, setIsLogged] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState<Activities>();
 
   useEffect(() => {
     getCurrentUser()
@@ -38,6 +42,22 @@ const GlobalProvider = ({ children }: { children: React.ReactNode }) => {
       });
   }, []);
 
+  const fetchActivities = async (date: string, user: any) => {
+    try {
+      setLoading(true);
+      const res = await getActivities(user?.$id, date);
+      if (res?.total !== 0) {
+        setActivities(res?.documents[0] as Activities);
+      } else {
+        setActivities(undefined);
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <GlobalContext.Provider
       value={{
@@ -46,6 +66,8 @@ const GlobalProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         setUser,
         loading,
+        activities,
+        fetchActivities,
       }}
     >
       {children}

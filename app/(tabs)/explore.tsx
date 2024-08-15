@@ -1,43 +1,14 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { Image, Platform, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import CalendarPicker from "react-native-calendar-picker";
 
-import { Collapsible } from "@/components/Collapsible";
-import { ExternalLink } from "@/components/ExternalLink";
-import ParallaxScrollView from "@/components/ParallaxScrollView";
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
 import { useGlobalContext } from "@/context/global-provider";
-import { addActivity, getActivities } from "@/lib/appwrite";
-import { useState } from "react";
-import { Models } from "react-native-appwrite";
-import { Activities } from "@/types/types";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { getQuote } from "@/lib/utils";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function TabTwoScreen() {
-  const { user } = useGlobalContext();
-
-  const [activities, setActivities] = useState<Activities>();
-  const [loading, setLoading] = useState(false);
+  const { user, fetchActivities, activities, loading } = useGlobalContext();
 
   const quote = getQuote(Number(activities?.totalCount) || 0);
-
-  const fetchActivities = async (date: string) => {
-    try {
-      setLoading(true);
-      const res = await getActivities(user?.accountId, date);
-      if (res?.total !== 0) {
-        setActivities(res?.documents[0] as Activities);
-      } else {
-        setActivities(undefined);
-      }
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <SafeAreaView className="h-full p-4 space-y-4">
@@ -46,7 +17,7 @@ export default function TabTwoScreen() {
         selectedDayColor="#FF9C01"
         selectedDayTextColor="#ffffff"
         onDateChange={(date) => {
-          fetchActivities(date.toString());
+          fetchActivities(date.toDateString(), user);
         }}
       />
       {loading ? (

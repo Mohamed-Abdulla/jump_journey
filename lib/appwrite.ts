@@ -86,6 +86,28 @@ export async function addActivity(
 ) {
   try {
     const response = await databases.createDocument(config.databaseId, config.activityCollectionId, ID.unique(), {
+      accountId: accountId,
+      date,
+      totalCount,
+      setCount,
+      repCount,
+    });
+    return response;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+export async function updateActivity(
+  documentId: string,
+  accountId: string,
+  date: string,
+  totalCount: number,
+  setCount: number,
+  repCount: number
+) {
+  try {
+    const response = await databases.updateDocument(config.databaseId, config.activityCollectionId, documentId, {
       accountId,
       date,
       totalCount,

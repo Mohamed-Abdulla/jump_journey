@@ -1,23 +1,24 @@
-import { Alert, Button, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import RNPickerSelect from "react-native-picker-select";
 
 import { useGlobalContext } from "@/context/global-provider";
-import { signOut } from "@/lib/appwrite";
-import { getFormattedDate } from "@/lib/utils";
+import { addActivity, signOut, updateActivity } from "@/lib/appwrite";
+import { getCalendarFormat } from "@/lib/utils";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
-  const { user } = useGlobalContext();
-  const formattedDate = getFormattedDate();
+  const { user, fetchActivities, activities } = useGlobalContext();
+  const formattedDate = getCalendarFormat();
 
-  const [setCount, setSetCount] = useState(1);
-  const [repCounts, setRepCounts] = useState([10]);
+  const [setCount, setSetCount] = useState(0);
+  const [repCount, setRepCount] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [breakTime, setBreakTime] = useState(30);
   const [isOnBreak, setIsOnBreak] = useState(false);
   const [breakTimer, setBreakTimer] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const breakOptions = [
     { label: "None", value: 0 },
@@ -26,6 +27,10 @@ export default function HomeScreen() {
     { label: "2 Min", value: 120 },
     { label: "5 Min", value: 300 },
   ];
+
+  useEffect(() => {
+    fetchActivities(formattedDate, user);
+  }, []);
 
   useEffect(() => {
     if (isOnBreak) {
@@ -45,36 +50,52 @@ export default function HomeScreen() {
     }
   }, [isOnBreak]);
 
+  const handleStartBreak = () => {
+    setBreakTimer(breakTime);
+    setIsOnBreak(true);
+  };
   const handleBreakSelection = (value: any) => {
     setBreakTime(value);
   };
 
-  const handleAddSet = () => {
-    setSetCount((prev) => prev + 1);
-    setRepCounts((prev) => [...prev, 10]); // Adding default 10 reps for the new set
-  };
-
-  const handleRepCountChange = (index: number, value: number) => {
-    setRepCounts((prev) => {
-      const newRepCounts = [...prev];
-      newRepCounts[index] = value;
-      return newRepCounts;
+  const handleIncrementSetCount = async () => {
+    setSetCount((prevSetCount) => {
+      const newTotalCount = totalCount + repCount;
+      setTotalCount(newTotalCount);
+      return prevSetCount + 1;
     });
-  };
-  const handleStartBreak = () => {
-    if (breakTime) {
-      setBreakTimer(breakTime);
-      setIsOnBreak(true);
-    } else {
-      Alert.alert("Select Break Time");
+
+    try {
+      setLoading(true);
+
+      await updateActivity(
+        activities?.$id as string,
+        user?.$id,
+        formattedDate,
+        totalCount + repCount,
+        setCount + 1,
+        repCount
+      );
+      alert("Workout updated successfully!");
+    } catch (error) {
+      console.log("Error updating activity:", error);
+    } finally {
+      setLoading(false);
     }
   };
-  const handleCreate = () => {};
 
-  useEffect(() => {
-    const calculatedTotal = repCounts.reduce((acc, count) => acc + count, 0);
-    setTotalCount(calculatedTotal);
-  }, [repCounts]);
+  const handleCreateWorkout = async () => {
+    try {
+      setLoading(true);
+      await addActivity(user?.$id, formattedDate, totalCount, setCount, repCount);
+      alert("Workout created successfully!");
+    } catch (error) {
+      console.log("Error creating user:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView className="h-full p-4">
@@ -106,25 +127,23 @@ export default function HomeScreen() {
             }
           />
         </View>
-        <Text className="text-2xl font-medium mb-4 text-center">{formattedDate}</Text>
-        <View>
+        <Text className="text-2xl font-semibold mb-4 text-center">{formattedDate}</Text>
+        <View className="space-y-4">
           <View className="flex flex-row justify-between items-center">
             <Text>Set Count:</Text>
             <Text>{setCount}</Text>
           </View>
-          {repCounts.map((count, index) => (
-            <View key={index} className="mb-2 flex flex-row justify-between items-center">
-              <Text>Set {index + 1} Rep Count:</Text>
-              <RNPickerSelect
-                value={count}
-                onValueChange={(value) => handleRepCountChange(index, value)}
-                items={[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((n) => ({ label: n.toString(), value: n }))}
-                disabled={isOnBreak}
-              />
-            </View>
-          ))}
-          <Text>Total Count: {totalCount}</Text>
-
+          <Text>Rep Count:</Text>
+          <RNPickerSelect
+            value={repCount}
+            onValueChange={(value) => setRepCount(value)}
+            items={[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((n) => ({ label: n.toString(), value: n }))}
+            disabled={isOnBreak}
+          />
+          <View className="flex flex-row justify-between items-center">
+            <Text>Total Count:</Text>
+            <Text>{totalCount}</Text>
+          </View>
           <Text>Break Timer:</Text>
           <RNPickerSelect
             value={breakTime}
@@ -134,16 +153,28 @@ export default function HomeScreen() {
           />
           {!isOnBreak ? (
             <View className="flex flex-row justify-between items-center">
-              <Button title="Take Break" onPress={handleStartBreak} />
-              <Button title=" + " onPress={handleAddSet} />
+              <TouchableOpacity onPress={handleStartBreak} className=" bg-secondary-100 p-2 rounded-full">
+                <Text className="text-white px-2">Take Break</Text>
+              </TouchableOpacity>
+              {!activities ? (
+                <TouchableOpacity onPress={handleCreateWorkout} className=" bg-secondary-100 p-2 rounded-full">
+                  {loading ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <Text className="text-white px-2">Create Workout</Text>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={handleIncrementSetCount} className=" bg-secondary-100 p-2 rounded-full">
+                  <Ionicons name="add" size={22} color="white" />
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
-            <Text>
+            <Text className="text-center">
               Break Time Remaining: {Math.floor(breakTimer / 60)}:{breakTimer % 60}
             </Text>
           )}
-
-          {/* <Button title="Create" onPress={handleCreate} />s */}
         </View>
       </ScrollView>
     </SafeAreaView>
